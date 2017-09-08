@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>Git</title>
+</head>
+
+<body>
+	<br />
+	<h1>添加SSH key到github</h1>	
+	<p>
+	1.安装git客户端<br />
+		sudo apt-get install git
+	2.配置Git的user name和email<br />
+		git config --global user.name "dfg"
+		git config --global user.email "wangqianlinux@163.com"<br />
+	3.生成SSH密钥
+		sudo ssh-keygen -t rsa -C "wangqianlinux@163.com"<br />
+		按3次回车键，密码为空。最后在主目录.ssh/下生成两个文件 id_rsa id_rsa.pub<br />
+	4.用浏览器打开github网站，登录 设置<br />
+		点击自己用户中的Setting--SSH and GPG keys --New SSH key or Add SSH key
+	5.复制刚才生成的 id_rsa.pub文件内容 粘贴<br />
+	6.点击Add SSH key,就可以看到添加成功。<br />	
+	</p>
+</body>
+
+</html>
