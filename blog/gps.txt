@@ -1,0 +1,208 @@
+GPS开发指引
+
+1.模块
+目前市场上的GPS模块种类比较多，我只描述下我自己接触到的几种类型（不涉及北斗等其他定位系统）
+	一种是ROM的，不支持发送命令交互
+	一种是FLASH的，支持命令交互
+	
+	不支持命令交互的就很简单，直接串口接收数据就好，然后解析数据包。
+	目前接触了可交互命令模块为MTK的模块支持命令交互，
+命令有：
+	1.修改NMEA 输出指令：(适用于后缀为MT，MTR，MTBD，MTGN 系列模块及Gmouse）
+	$PMTK314,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0*29
+	模块只输出GPZDA
+	$PMTK314,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29
+	模块只输出GPGLL
+	$PMTK314,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29
+	模块只输出GPRMC
+	$PMTK314,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29
+	模块只输出GPVTG
+	$PMTK314,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29
+	模块只输出GPGGA
+	$PMTK314,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29
+	模块只输出GPGSA
+	$PMTK314,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0*29
+	模块只输出GPGSV
+	$PMTK314,1,1,1,1,1,5,0,0,0,0,0,0,0,0,0,0,0,1,0*2D
+	模块恢复为输出RMC，GGA，GSA，GSV（5 秒输出一次），GLL，VTG，ZDA
+	2.BD，GPS 模式修改指令(适用于后缀为MTBD 模块及Gmouse）
+	$PMTK353,1,0,0,0,0*2A
+	使用纯GPS 模式操作
+	$PMTK353,1,0,0,0,1*2B
+	使用(BDS+GPS)混星模式操作
+	$PMTK353,0,0,0,0,1*2A
+	使用纯BDS 模式操作
+	3.模块冷启动，热启动，温启动指令(适用于后缀为MT，MTR，MTBD，MTGN 系列
+	模块及Gmouse）
+	$PMTK103*30
+	模块冷启动指令
+	$PMTK102*31
+	模块温启动指令
+	$PMTK101*32
+	模块热启动指令
+
+	4.模块修改波特率指令(适用于后缀为MT，MTR，MTBD，MTGN 系列模块及Gmouse）
+	$PMTK251,115200*1F
+	模块输出波特率为115200bps
+	$PMTK251,57600*2C
+	模块输出波特率为57600bps
+	$PMTK251,38400*27
+	模块输出波特率为38400bps
+	$PMTK251,19200*22
+	模块输出波特率为19200bps
+	$PMTK251,9600*17
+	模块输出波特率为9600bps
+	$PMTK251,4800*14
+	模块输出波特率为4800bps
+	$PMTK251,0*28
+	模块回复原始出厂输出波特率
+	5.MTR 系列模块抑制静态飘逸指令：
+	$PMTK386,2.0*3F
+	静态飘逸速度抑制在2.0 米/S，红色参数可选择（0.2，0.4，0.6，0.8，1.0，1.2，
+	1.4，1.6，1.8，2.0）校验和需要根据上面不同选择参数重新算。
+
+2.数据解析
+	所有数据都是依据 NMEA-0183 协议（具体参看NMEA-0183协议）
+	一般模块都是每秒发送一次数据包GPS&GNSS（GGA、GLL、GSA、GSV、RMC、VTG）
+	包头为GP/GN
+	包中含有信息：经度、纬度、时间、日期、卫星数、卫星ID、卫星信号强度、卫星方位角、速度、海拔等
+	
+3.经纬度坐标转换地图坐标
+	由GPS模块直接得倒的经纬度被称为WGS84坐标系；
+	由于我国保护政策，国内在WGS84坐标系中做了偏移，得倒的坐标被称为火星坐标；
+	国内地图厂商有的直接采用火星坐标，有的在此基础上在做了加密偏移（例如：百度地图）
+
+	地图 					坐标系
+ 百度地图 			       百度坐标
+腾讯搜搜地图 	           火星坐标
+搜狐搜狗地图 	           搜狗坐标*
+ 阿里云地图 			   火星坐标
+图吧MapBar地图 			   图吧坐标
+高德MapABC地图 			   火星坐标
+灵图51ditu地图 	           火星坐标
+
+
+	地图一般都是纬度在前，经度在后。单位为度。（注：GPS模块采用NMEA-0183协议单位不是度，使用时需要转换）
+	纬度ddmm.mmmm
+	经度dddmm.mmmm
+		Decimal Degrees = Degrees + minutes/60 + seconds/3600
+		例：57°55’56.6″ =57+55/60+56.6/3600=57.9323888888888
+		114°65’24.6″=114+65/60+24.6/3600=结果自己算!
+
+		如把经纬度 (longitude，latitude) (205.395583333332，57.9323888888888)
+		转换据成坐标(Degrees,minutes,seconds)(205°23’44.1″，57°55’56.6″)。
+		步骤如下：
+
+		1， 直接读取”度”：205
+		2，(205.395583333332-205)*60=23.734999999920 得到”分”：23
+		3，(23.734999999920-23)*60=44.099999995200 得到”秒”：44.1
+
+
+下面代码为坐标系互相转换函数（注：经纬度单位：度）
+转换之后就可以在地图上显示出来了（亲测可行）地图地址：http://www.gpsspg.com/maps.htm	
+
+算法参考：http://bbs.lbsyun.baidu.com/forum.php?mod=viewthread&tid=10923	
+#include<stdio.h>
+#include<math.h>
+
+#define PI (3.14159265358979324) //圆周率
+#define A (6378245.0) //卫星椭球坐标投影到平面地图坐标系的投影因子
+#define EE (0.00669342162296594323) //椭球的偏心率
+#define X_PI (PI * 3000.0 / 180.0) //圆周率转换量
+
+typedef struct
+{
+	double lat;	//纬度
+	double lon;	//经度
+}Loc_t;
+
+Loc_t wgs84_to_bd09(double lat, double lon);
+Loc_t wgs84_to_gcj02(double lat, double lon);
+Loc_t gcj02_to_bd09(double lat, double lon);
+Loc_t bd09_to_gcj02(double lat, double lon);
+static double transform_lat(double lat, double lon);
+static double transform_lon(double lat, double lon);
+
+int main(int argc, char* argv[])
+{
+	double lat, lon;
+	Loc_t test;
+	lat = 22.548613;
+	lon = 113.919856;	//公司WGS84坐标
+	test = wgs84_to_gcj02(lat, lon);
+	printf("lat = %lf, lon = %lf\n", test.lat, test.lon);
+	test = wgs84_to_bd09(lat, lon);
+	printf("bd lat = %lf, lon = %lf\n", test.lat, test.lon);
+	return 0;
+}
+
+//WGS84坐标转换成百度坐标
+Loc_t wgs84_to_bd09(double lat, double lon)
+{
+	Loc_t temploc;
+	temploc = wgs84_to_gcj02(lat, lon);
+	temploc = gcj02_to_bd09(temploc.lat, temploc.lon);
+	return temploc;
+}
+
+//WGS84坐标转换成火星坐标
+Loc_t wgs84_to_gcj02(double lat, double lon)
+{
+	Loc_t resloc;
+	double sqrtMagic, magic;
+	double dLat = transform_lat(lon - 105.0, lat - 35.0);
+	double dLon = transform_lon(lon - 105.0, lat - 35.0);
+	double radLat = lat / 180.0 * PI;
+	magic = sin(radLat);
+	magic = 1 - EE * magic * magic;
+	sqrtMagic = sqrt(magic);
+	dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
+	dLon = (dLon * 180.0) / (A / sqrtMagic * cos(radLat) * PI);
+	resloc.lat = lat + dLat;
+	resloc.lon = lon + dLon;
+	return resloc;
+}
+
+//百度坐标转换成火星坐标
+Loc_t bd09_to_gcj02(double lat, double lon)
+{
+	Loc_t temploc;
+	double x = lon - 0.0065, y = lat - 0.006;
+	double z = sqrt(x * x + y * y) - 0.00002 * sin(y * X_PI);
+	double theta = atan2(y, x) - 0.000003 * cos(x * X_PI);
+	temploc.lon = z * cos(theta);
+	temploc.lat = z * sin(theta);
+	return temploc;
+}
+
+//火星坐标转换成百度坐标
+Loc_t gcj02_to_bd09(double lat, double lon)
+{
+	Loc_t temploc;
+	double x = lon, y = lat;
+	double z = sqrt(x * x + y * y) + 0.00002 * sin(y * X_PI);
+	double theta = atan2(y, x) + 0.000003 * cos(x * X_PI);
+	temploc.lon = z * cos(theta) + 0.0065;
+	temploc.lat = z * sin(theta) + 0.006;
+	return temploc;
+}
+
+//纬度转换方法，比较复杂
+static double transform_lat(double lat, double lon)
+{
+	double ret = -100.0 + 2.0 * lat + 3.0 * lon + 0.2 * lon * lon + 0.1 * lat * lon + 0.2 * sqrt(abs(lat));
+	ret += (20.0 * sin(6.0 * lat * PI) + 20.0 * sin(2.0 * lat * PI)) * 2.0 / 3.0;
+	ret += (20.0 * sin(lon * PI) + 40.0 * sin(lon / 3.0 * PI)) * 2.0 / 3.0;
+	ret += (160.0 * sin(lon / 12.0 * PI) + 320 * sin(lon * PI  / 30.0)) * 2.0 / 3.0;
+	return ret;
+}
+
+//经度转换方法，比较复杂
+static double transform_lon(double lat, double lon)
+{
+	double ret = 300.0 + lat + 2.0 * lon + 0.1 * lat * lat + 0.1 * lat * lon + 0.1 * sqrt(abs(lat));
+	ret += (20.0 * sin(6.0 * lat * PI) + 20.0 * sin(2.0 * lat * PI)) * 2.0 / 3.0;
+	ret += (20.0 * sin(lat * PI) + 40.0 * sin(lat / 3.0 * PI)) * 2.0 / 3.0;
+	ret += (150.0 * sin(lat / 12.0 * PI) + 300.0 * sin(lat / 30.0 * PI)) * 2.0 / 3.0;
+	return ret;
+}
